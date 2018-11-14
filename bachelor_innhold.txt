@@ -8,6 +8,8 @@ Kommunikasjon mellom Rpi --> Rpi
 
 Mulighet for lightweight GCS med Rpi
 MAVProxy
+QGroundControl 
+MAVlink: Mavlink.io
 
 Enkelt script for landing/takeoff med dronekit
 https://gist.github.com/dbaldwin/9185b702091148580fa836c1911f8735
