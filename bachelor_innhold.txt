@@ -13,3 +13,9 @@ MAVlink: Mavlink.io
 
 Enkelt script for landing/takeoff med dronekit
 https://gist.github.com/dbaldwin/9185b702091148580fa836c1911f8735
+
+
+TODO:
+Planlegg samtale med Jarle
+Ordne rom for jobbing (via Håvard? Forskningsparken?)
+Ordne forprosjektsdokumentet
