@@ -1,4 +1,4 @@
-Rpi --> Pixhawk:
+﻿Rpi --> Pixhawk:
 Kommunikasjon mellom pi og Pixhawk
 http://dronekit.io/
 http://ardupilot.org/copter/docs/common-telemetry-port-setup-for-apm-px4-and-pixhawk.html
@@ -19,3 +19,9 @@ TODO:
 Planlegg samtale med Jarle
 Ordne rom for jobbing (via Håvard? Forskningsparken?)
 Ordne forprosjektsdokumentet
+
+Beacon:
+Kan justere Spenning (V) fra 6-18V. 
+strømtrekk omtrent 0,20-0,30 ampere. 
+- Må lage til "hus" for beacon for å sentrere IR-lyset for å unngå refleksjonsstøy. 
+- Må finne ut hvordan vi skal justere IR-lyset, potmeter eller justerbar utgang (pwm til volt) pixhawk?
