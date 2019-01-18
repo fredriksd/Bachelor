@@ -1,18 +1,63 @@
 #! usr/bin/env python
 
+
+#Koden henter ut GPS-data fra bluetooth-linken.
+#Skal vi legge ved "N" og "E" på sendinga av GPS-posisjonen?
+
+#Må finne en metode for å gjøre GPS-posisjonen generisk, dvs, vite om den er "sør" eller "øst"
+#Kan hende dette må ordnes for pixhawken, men er litt usikker. 
+
 import time 
 import serial
+import sys
 
-ser = serial.Serial(
-	port = '/dev/serial0',
-	baudrate = 9600,
-	timeout = 15
-	)
+data_in = "$GPRMC,123519,A,4807.03845,N,01131.23520,E,022.4,084.4,230394,003.1,W*6A"
+
+def read_and_process(data):
+        data_to_read = {}
+        for i in range(0,len(data)):
+                if i == 3:
+                        data_to_read['lat'] = data[i]
+                elif i == 5:
+                        data_to_read['long'] = data[i]
+                else:
+                        pass
+        lat = data_to_read['lat']
+        lat = lat[:2] + '.' + str(int(round(float(lat[2:4] + lat[5:9])/60.0)))
+
+        longi = data_to_read['long']
+        longi = str(int(longi[:3])) + '.' + str(int(round(float(longi[3:5] + longi[6:10])/60.0)))
 
 
+        data_to_read['lat'] = lat
+        data_to_read['long'] = longi
+
+        return data_to_read
+
+
+'''ser = serial.Serial(
+        port = '/dev/serial0',
+        baudrate = 9600,
+        timeout = 15
+        )
+'''
+
+invalid_counter = 0
 while True:
-	data_in = ser.readline()
-	if data_in[2:] == "RMC":
-		print data_in
+        #data_in = ser.readline()
+        if data_in[3:6] == b"RMC":
+                data_in = str(data_in).split(",")
+                print data_in
 
-
+                if data_in[2] == 'A':
+                        #print "Valid data"
+                        read_data = read_and_process(data_in)
+                        print read_data
+                        time.sleep(1)
+                else:
+                	print "Invalid data"
+                	invalid_counter += 1
+                	time.sleep(1)
+                	if invalid_counter == 5:
+                		break
+                		sys.exit(0)
