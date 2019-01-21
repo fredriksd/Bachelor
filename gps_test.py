@@ -12,7 +12,8 @@ import time
 import serial
 import sys
 
-data_in = "$GPRMC,123519,A,4807.03845,N,01131.23520,E,022.4,084.4,230394,003.1,W*6A"
+#data_in = "$GPRMC,123519,A,4807.03845,N,01131.23520,E,022.4,084.4,230394,003.1,W*6A"
+data_out = {"lat": "46.0344", "longi": "113.52"}
 
 def read_and_process(data):
         data_to_read = {}
@@ -41,26 +42,28 @@ def gps_send(data):
         data += "\n"
         ser.write(data.encode())
 
-'''
+
 ser = serial.Serial(
         port = '/dev/serial0',
         baudrate = 9600,
         timeout = 15
         )
-'''
+
 
 invalid_counter = 0
 while True:
-        #data_in = ser.readline()
+        data_in = ser.readline()
         if data_in[3:6] == b"RMC":
                 data_in = str(data_in).split(",")
                 print data_in
+                gps_send(data_out)
 
                 if data_in[2] == 'A':
                         #print "Valid data"
                         read_data = read_and_process(data_in)
                         print read_data
                         time.sleep(1)
+
                 else:
                 	print "Invalid data"
                 	invalid_counter += 1
