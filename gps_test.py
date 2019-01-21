@@ -1,3 +1,4 @@
+#-*- coding:utf-8 -*-
 #! usr/bin/env python
 
 
@@ -35,7 +36,13 @@ def read_and_process(data):
         return data_to_read
 
 
-'''ser = serial.Serial(
+def gps_send(data):
+        #global ser 
+        data += "\n"
+        ser.write(data.encode())
+
+'''
+ser = serial.Serial(
         port = '/dev/serial0',
         baudrate = 9600,
         timeout = 15
@@ -60,4 +67,6 @@ while True:
                 	time.sleep(1)
                 	if invalid_counter == 5:
                 		break
+                                ser.close()
                 		sys.exit(0)
+
