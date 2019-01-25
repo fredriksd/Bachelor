@@ -40,7 +40,7 @@ def read_and_process(data):
 def gps_send(data):
         #global ser 
 
-	data = data["lat"] + ' ' +  data["long"] + ' ' + '\n'
+	data = data["lat"] + ',' +  data["long"] + ' ' + '\n'
         ser.write(data.encode('utf-8'))
 	print "Success"
 #	ser.close()
@@ -74,4 +74,3 @@ while True:
                 		break
                                 ser.close()
                 		sys.exit(0)
-
