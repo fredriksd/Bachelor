@@ -42,6 +42,7 @@ def gps_send(data):
 
 	data = data["lat"] + ',' +  data["long"] + ' ' + '\n'
  	ser.write(data)
+        ser.write(data.encode('utf-8'))
 	print "Success"
 #	ser.close()
 
@@ -79,4 +80,3 @@ while True:
                 		break
                                 ser.close()
                 		sys.exit(0)
-
