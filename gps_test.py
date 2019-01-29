@@ -40,8 +40,8 @@ def read_and_process(data):
 def gps_send(data):
         #global ser 
 
-	data = data["lat"] + ' ' +  data["long"] + ' ' + '\n'
-        ser.write(data.encode('utf-8'))
+	data = data["lat"] + ',' +  data["long"] + ' ' + '\n'
+ 	ser.write(data)
 	print "Success"
 #	ser.close()
 
@@ -54,6 +54,7 @@ ser = serial.Serial(
 
 invalid_counter = 0
 while True:
+	start_time = time.time()
         data_in = ser.readline()
 	print data_in
         if data_in[3:6] == b"RMC":
@@ -68,8 +69,12 @@ while True:
 
                 else:
                 	print "Invalid data"
+			stop_time = time.time()
+
+			print "Tid: " + str(stop_time - start_time)
+
                 	invalid_counter += 1
-                	time.sleep(1)
+                	time.sleep(1)	
                 	if invalid_counter == 5:
                 		break
                                 ser.close()
