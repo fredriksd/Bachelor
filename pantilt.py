@@ -95,10 +95,8 @@ def handle_SIGINT(signal, frame):
   global run_flag
   run_flag = False
 
-def main():
+def get_pwm():
   global run_flag
-
-  print '+ Pixy Tracking Demo Started +'
 
   # Initialize Pixy Interpreter thread #
   pixy_init_status = pixy_init()
@@ -147,21 +145,8 @@ def main():
       # of putting the target in the center of Pixy's focus.    #
       pan_gimbal.update(pan_error)
       tilt_gimbal.update(tilt_error)
-
-      set_position_result = pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_gimbal.position)
-
-      if set_position_result < 0:
-        print 'Error: pixy_rcs_set_position() [%d] ' % result
-        pixy_error(result)
-        sys.exit(2)
-
-      set_position_result = pixy_rcs_set_position(PIXY_RCS_TILT_CHANNEL, tilt_gimbal.position)
-
-      if set_position_result < 0:
-        print 'Error: pixy_rcs_set_position() [%d] ' % result
-        pixy_error(result)
-        sys.exit(2)
-
+      return pan_gimbal.position, tilt_gimbal.position 
+'''
     if (frame_index % 50) == 0:
       # If available, display block data once a second #
       print 'frame %d:' % frame_index
@@ -175,3 +160,4 @@ def main():
 
 if __name__ == "__main__":
   main()
+'''
