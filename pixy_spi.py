@@ -39,10 +39,10 @@ class PWM():
 			self.position += vel
 			#Begrenser utslagene på servoutgangen mellom 1000us
 			#og 2000us.
-			self.position = constrain(self.position, 1000, 2000)
-			#print self.position
+			self.position = constrain(self.position, 1400, 1600)
+
 			return self.position
-			#print self.position
+
 		else:
 			self.firstupdate = False
 		self.previous_error = error
