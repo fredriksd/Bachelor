@@ -2,23 +2,28 @@
 #!/usr/bin/python
 
 
-from dronekit import connect, VehicleMode, LocationGlobalRelative
+from dronekit import connect, VehicleMode, LocationGlobalRelative, APIException
 from pymavlink import mavutil
 import time
 import argparse
-from pixy_spi import PWM, get_Pixy #<-- Noe i denne duren blir det.
+import exceptions
+import socket
+from pixy_spi import PWM, get_Pixy 
 
 #Parametre 
 lost = False
 lost_counter = 0
+searching = True
 
 ####RC####
 ROLL = '1'
 PITCH = '2'
 THROTTLE = '3'
 NAV_MODE = "ALT_HOLD"
+MANUAL_ANGLE = 4500
+NAV_ANGLE = 1000
 pwm_roll = PWM(P_gain = 200, D_gain = 200, inverted = True) 
-pwm_pitch = PWM(P_gain = 200, D_gain = 200, inverted = True)
+pwm_pitch = PWM(P_gain = 200, D_gain = 200, inverted = True) #INVERTERT BARE I SITL
 #####
 
 ####PIXEL####
@@ -40,15 +45,28 @@ parser.add_argument('--connect', default='/dev/serial0',
 args = parser.parse_args()
 
 # Koble til fartøy
-print'Connecting to vehicle on: %s' % args.connect
-vehicle = connect(args.connect, wait_ready=True, heartbeat_timeout=15)
+try:
+  print'Connecting to vehicle on: %s' % args.connect
+  vehicle = connect(args.connect, wait_ready=True, heartbeat_timeout=15)
 
-''' #Callback to print the location in global frames. 'value' is the updated value
-def location_callback(self, attr_name, value):
-   print "Location (Global): ", value
+  # Dårlig TCP-forbindelse
+except socket.error:
+  print 'No server exists!'
+  print "Reconnecting to vehicle on: %s" %args.connect
+  vehicle = connect(args.connect, wait_ready=True, heartbeat_timeout=15)
 
-'''
+# Dårlig TTY-forbindelse
+except exceptions.OSError as e:
+  print 'No serial exists!'
+  print "Reconnecting to vehicle on: %s" %args.connect
+  vehicle = connect(args.connect, wait_ready=True, heartbeat_timeout=15)
 
+
+# API-error
+except APIException:
+  print 'Timeout!'
+  print "Reconnecting to vehicle on: %s" %args.connect
+  vehicle = connect(args.connect, wait_ready=True, heartbeat_timeout=15)
 
 
 last_rangefinder_distance=0
@@ -69,14 +87,38 @@ def decorated_mode_callback(self, attr_name, value):
     # `value` is the updated attribute value.
     print "CALLBACK: Mode changed to", value
 
-
-
 def takeover():
   '''Funksjon for å sjekke for takeover fra radio eller GCS.'''
-  if ROLL and PITCH in vehicle.channels.overrides and not vehicle.mode.name == NAV_MODE:
+  if not searching: #(ROLL and PITCH in vehicle.channels.overrides and not vehicle.mode.name == NAV_MODE) or not searching:
     return True
   else:
     return False
+
+def manual_flight():
+  global searching
+  '''
+  Funksjon for manuell flyging. Programmet står i ro mens 
+  dronen er kontrollert manuelt. Når vehicle.mode.name == NAV_MODE gå tilbake til pixy_search
+  '''
+  vehicle.mode = VehicleMode('LOITER')
+  time.sleep(0.3)
+  potential_counter = 0
+
+  vehicle.parameters["ANGLE_MAX"] = MANUAL_ANGLE
+  while vehicle.mode.name != NAV_MODE:
+    print "Manual flight..."
+    time.sleep(0.3)
+    potential = get_Pixy()
+    if potential and len(potential) == 4:
+      potential_counter += 1
+    if potential_counter == 3:
+      print "Found point! Returning to %s" % NAV_MODE
+      vehicle.mode = VehicleMode(NAV_MODE)
+      time.sleep(0.5)
+      vehicle.parameters["ANGLE_MAX"] = NAV_ANGLE
+      searching = True
+      break
+
 
 def set_home():
   while not vehicle.home_location:
@@ -112,22 +154,8 @@ def arm():
     time.sleep(1)
 
 
-def manual_flight():
-  '''
-  Funksjon for manuell flyging. Programmet står i ro mens 
-  dronen er kontrollert manuelt. Når vericle.mode.name == NAV_MODE gå tilbake til pixy_search
-  '''
-  while vehicle.mode.name != NAV_MODE:
-    print "Manual flight..."
-    time.sleep(0.3)
-
-'''
-Lage en pixy_search funksjon som søker etter pixy OG sjekker swith på kontroller. 
-Hvis vericle.mode.name != NAV_MODE, gå inn i manual_fligh funksjon. Når pixy ser objekt, gå videre i "while true" løkka
-'''
 # Function to arm and then takeoff to a user specified altitude
 def arm_and_takeoff(aTargetAltitude):
-
   print"Basic pre-arm checks"
   # Don't let the user try to arm until autopilot is ready
   while not vehicle.is_armable:
@@ -164,80 +192,105 @@ def simpleGoto(lat, longi):
 	print "moving to ({}, {})".format(lat, longi)
 	vehicle.simple_goto(loc)
 
-#get_start_status()
-#Funksjon for å hente ut data om UAV's tilstand før vi flyr
-#for å bestemme om det er greit å fly.
+
+'''
+Lage en pixy_search funksjon som søker etter pixy OG sjekker swith på kontroller. 
+Hvis vericle.mode.name != NAV_MODE, gå inn i manual_flight funksjon. Når pixy ser objekt, gå videre i "while true" løkka
+'''
+
+def pixy_search():
+  '''
+  Funksjon for å fortsette å lete etter lyspunkt.
+  Etter en gitt tid returneres 'False' og kontrollen overføres til manuell.
+  '''
+  global lost_counter 
+  print 'Searching...'
+  lost_counter += 1
+  time.sleep(0.05)
+
+  if ROLL and PITCH in vehicle.channels.overrides and lost_counter == 40:
+    return False
+  
+
 
 
 #MAIN PROGRAM
 if __name__ == "__main__":
   try:
     
-    arm_and_takeoff(20)
-    #is_takeover = takeover()
+    '''
+    Foreløpig for SITL-bruk: Armere og ta av. Deretter navigere inn mot punktet. 
+    '''
+    arm_and_takeoff(10)
     vehicle.mode = VehicleMode(NAV_MODE)
     vehicle.channels.overrides[THROTTLE] = 1500 #BARE FOR SITL
     time.sleep(0.5)
 
-    if vehicle.mode.name == NAV_MODE and vehicle.parameters["ANGLE_MAX"] == 4500:
-      vehicle.parameters["ANGLE_MAX"] = 1000
+    if vehicle.parameters["ANGLE_MAX"] == MANUAL_ANGLE:
+      vehicle.parameters["ANGLE_MAX"] = NAV_ANGLE
 
     
     while True:
       if not takeover():
         #Dersom gjenoppretting av lyspunkt:
         #Skift tilbake til NAV_MODE og redusere vinkelutslag
-        if lost:
+        '''if lost:
           vehicle.mode = VehicleMode(NAV_MODE)
           lost_counter = 0
-          vehicle.parameters["ANGLE_MAX"] = 1000 
+          vehicle.parameters["ANGLE_MAX"] = NAV_ANGLE '''
 
         send = get_Pixy()
         while not send:
-          #lag en pixy_lost funksjon
-          print 'Searching...'
-          send = get_Pixy()
-          lost_counter += 1
-          time.sleep(0.01)
+          #lag en pixy_search funksjon
+          pixy_search()
 
-          if ROLL and PITCH in vehicle.channels.overrides and lost_counter == 15:
-            vehicle.mode = VehicleMode("LOITER")
-            vehicle.parameters["ANGLE_MAX"] = 4500
-            lost = True
+          if not pixy_search():
+            print 'Lost track of point...'
+            time.sleep(0.5)
+            searching = False
+            break
+            #manual_flight()
 
-        print send
+        #Begynn ny iterasjon dersom søkinga har sviktet. 
+        if not searching:
+          continue
+          
+        else:
+          print send
 
-        #Beregner feil for PD-regulering
-        error_x = x_center - send[0]
-        error_y = y_center - send[1]
-        #Setter denne feilen inn i PD-regulatoren og beregner PWM-posisjon
-        pwm_roll.update(error_x)
-        pwm_pitch.update(error_y)
+          #Beregner feil for PD-regulering
+          error_x = x_center - send[0]
+          error_y = y_center - send[1]
+          #Setter denne feilen inn i PD-regulatoren og beregner PWM-posisjon
+          pwm_roll.update(error_x)
+          pwm_pitch.update(error_y)
 
-        print vehicle.channels
-      
-        print "Roll: ", pwm_roll.position
-        print "Pitch: ", pwm_pitch.position
+          print vehicle.channels
         
-        vehicle.channels.overrides = {THROTTLE: 1500, ROLL: pwm_roll.position ,PITCH: pwm_pitch.position}
-        time.sleep(0.1)
+          print "Roll: ", pwm_roll.position
+          print "Pitch: ", pwm_pitch.position
+          
+          vehicle.channels.overrides = {THROTTLE: 1500, ROLL: pwm_roll.position ,PITCH: pwm_pitch.position}
+          time.sleep(0.1)
+          
       else:
         '''
         Ved takeover fra senderen (som merkes i form av mode-bytte) renses kanaloverskrivelsene
         slik at en kan gjenopprette kontrollen.
         '''
         print "Tx takeover"
+        time.sleep(0.1)
         vehicle.channels.overrides = {THROTTLE: 1500} #BARE FOR SITL
-        vehicle.parameters["ANGLE_MAX"] = 4500
         manual_flight()
         
 
 
   # Close vehicle object
   except KeyboardInterrupt:
+    vehicle.channels.overrides = {THROTTLE: 1500} #BARE FOR SITL
     vehicle.mode = VehicleMode('LOITER')
-    vehicle.channels.overrides = {THROTTLE: 1500}
-    #vehicle.armed = False
+    time.sleep(0.3)
+    print vehicle.channels
     vehicle.close()
   
   vehicle.close()
